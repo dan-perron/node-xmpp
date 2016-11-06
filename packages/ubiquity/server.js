@@ -2,9 +2,9 @@
 
 const XMPP = require('./XMPP')
 const HTTP = require('./HTTP')
-const subscriptions = require('./XMPP/subscriptions')
+const cache = require('./cache')
 
-subscriptions.start().then(() => {
+cache.start().then(() => {
   return Promise.all([
     XMPP.start(),
     HTTP.start()

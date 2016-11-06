@@ -4,7 +4,7 @@ const level = require('level')
 const db = level('./db', {
   valueEncoding: 'json'
 })
-const presences = require('../presences')
+const presences = require('./presences')
 
 module.exports = db
 module.exports.start = function () {

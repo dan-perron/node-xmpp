@@ -10,7 +10,7 @@ const fs = require('fs')
 const iqHandlers = require('./iq-handlers')
 const entity = new Component()
 const presences = require('../presences')
-const subscriptions = require('./subscriptions')
+const cache = require('../cache')
 
 callee.plugin(entity)
 caller.plugin(entity)
@@ -30,10 +30,10 @@ entity.on('stanza', (stanza) => {
       entity.send(xml`<presence to='${from}' type='subscribe'/>`)
     } else if (type === 'unsubscribed') {
       entity.send(xml`<presence to='${from}' type='unsubscribe'/>`)
-      subscriptions.del(from)
+      cache.del(from)
       presences.forget(hash)
     } else if (type === 'subscribed') {
-      subscriptions.put(from, {})
+      cache.put(from, {})
     } else if (type === 'unavailable') {
       presences.set(hash, 'show', 'unavailable')
     } else if (type === 'probe') {
@@ -66,7 +66,7 @@ entity.on('stanza', (stanza) => {
                     hash: photo.text()
                   }
                   presences.set(hash, 'avatar', avatar)
-                  subscriptions.put(jid, {avatar})
+                  cache.put(jid, {avatar})
                 }
               })
             }
