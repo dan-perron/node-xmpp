@@ -1,18 +1,22 @@
 'use strict'
 
 const Component = require('@xmpp/component')
-const iqCallee = require('@xmpp/iq-callee')
+const callee = require('@xmpp/iq-callee')
+const caller = require('@xmpp/iq-caller')
 const xml = require('@xmpp/xml')
 const JID = require('@xmpp/jid')
+const path = require('path')
+const fs = require('fs')
 const iqHandlers = require('./iq-handlers')
 const entity = new Component()
 const presences = require('../presences')
 const subscriptions = require('./subscriptions')
 
-iqCallee.plugin(entity)
+callee.plugin(entity)
+caller.plugin(entity)
 
 iqHandlers.forEach(({match, handle}) => {
-  iqCallee.addRequestHandler(entity, match, handle)
+  callee.addRequestHandler(entity, match, handle)
 })
 
 entity.on('stanza', (stanza) => {
@@ -29,24 +33,44 @@ entity.on('stanza', (stanza) => {
       subscriptions.del(from)
       presences.forget(hash)
     } else if (type === 'subscribed') {
-      subscriptions.put(from, '')
+      subscriptions.put(from, {})
     } else if (type === 'unavailable') {
-      presences.set(hash, 'status', 'unavailable')
+      presences.set(hash, 'show', 'unavailable')
     } else if (type === 'probe') {
       entity.send(xml`<presence to='${from}'/>`)
     } else if (type === undefined || type === 'available') {
-      // const show = stanza.getChild('show')
-      // const status = stanza.getChild('status')
-      presences.set(hash, 'status', 'available')
+      const show = stanza.getChild('show')
+      if (show && show.text()) presences.set(hash, 'show', show.text())
+      else presences.set(hash, 'show', 'available')
+      const status = stanza.getChild('status')
+      if (status && status.getText()) presences.set(hash, 'status', status.text())
       const vcardEl = stanza.getChild('x', 'vcard-temp:x:update')
       if (vcardEl) {
         const photo = vcardEl.getChild('photo')
         if (photo && photo.text()) {
-          entity.send(xml`
-            <iq to='${jid}' type='get'>
-              <vCard xmlns='vcard-temp'/>
-            </iq>
-          `)
+          const cached = presences.get(hash, 'avatar') || {}
+          if (cached.hash === photo.text()) return
+          caller.get(entity, jid, xml`<vCard xmlns='vcard-temp'/>`).then((value) => {
+            const photoEl = value.getChild('PHOTO')
+            if (!photoEl) return
+            const typeEl = photoEl.getChild('TYPE')
+            const binvalEl = photoEl.getChild('BINVAL')
+            if (typeEl && typeEl.text() && binvalEl && binvalEl.text()) {
+              const buf = new Buffer(binvalEl.text(), 'base64')
+              fs.writeFile(path.join(__dirname, '../avatars/', hash), buf, (err) => {
+                if (err) return console.error(err)
+                else {
+                  const avatar = {
+                    type: typeEl.text(),
+                    size: buf.length,
+                    hash: photo.text()
+                  }
+                  presences.set(hash, 'avatar', avatar)
+                  subscriptions.put(jid, {avatar})
+                }
+              })
+            }
+          })
         }
       }
     }
@@ -83,17 +107,8 @@ module.exports.start = function () {
   return entity.start('xmpp:ubiquity.localhost:5347')
     .then((jid) => {
       console.log('XMPP component', jid.toString(), 'online')
-      subscriptions.createKeyStream().on('data', (key) => {
-        entity.send(xml`<presence type='probe' to='${key}'/>`)
-        entity.send(xml`
-          <iq type='get'
-              to='${key}'
-              id='retrieve1'>
-            <pubsub xmlns='http://jabber.org/protocol/pubsub'>
-              <items node='urn:xmpp:avatar:data'/>
-            </pubsub>
-          </iq>
-        `)
+      Object.values(presences.store).forEach(({jid}) => {
+        entity.send(xml`<presence type='probe' to='${jid}'/>`)
       })
     })
 }

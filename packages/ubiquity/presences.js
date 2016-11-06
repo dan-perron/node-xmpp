@@ -2,9 +2,10 @@
 
 const crypto = require('crypto')
 
-const presences = Object.create(null)
+const store = Object.create(null)
 
 module.exports = {
+  store,
   hash(jid) {
     return crypto
       .createHash('md5')
@@ -12,19 +13,18 @@ module.exports = {
       .digest('hex')
   },
   set(hash, key, value) {
-    if (!presences[hash]) presences[hash] = Object.create(null)
-    presences[hash][key] = value
+    if (!store[hash]) store[hash] = Object.create(null)
+    store[hash][key] = value
   },
   get(hash, key) {
-    console.log(presences, hash)
-    if (!presences[hash]) return undefined
-    return presences[hash][key]
+    if (!store[hash]) return undefined
+    return store[hash][key]
   },
   del(hash, key) {
-    if (!presences[hash]) return
-    delete presences[hash][key]
+    if (!store[hash]) return
+    delete store[hash][key]
   },
   forget(hash) {
-    delete presences[hash]
+    delete store[hash]
   }
 }
