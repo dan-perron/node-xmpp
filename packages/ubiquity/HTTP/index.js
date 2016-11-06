@@ -5,6 +5,11 @@ const server = express()
 const presences = require('../presences')
 const path = require('path')
 
+server.get('/:hash/nick', (req, res, next) => {
+  const status = presences.get(req.params.hash, 'nick')
+  res.send(status || '')
+})
+
 server.get('/:hash/status', (req, res, next) => {
   const status = presences.get(req.params.hash, 'status')
   res.send(status || '')
@@ -28,8 +33,6 @@ server.get('/:hash/avatar', (req, res, next) => {
     }
   })
 })
-
-// https://presence.jabberfr.org/ddeb37b0fb1b79ff5a850f92e05bcf6e/text-en.txt
 
 module.exports.start = function () {
   return new Promise((resolve, reject) => {

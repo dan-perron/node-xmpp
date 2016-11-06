@@ -22,69 +22,79 @@ iqHandlers.forEach(({match, handle}) => {
   callee.addRequestHandler(entity, match, handle)
 })
 
+function updateAvatar (hash, jid, photoHash) {
+  const cached = presences.get(hash, 'avatar') || {}
+  if (cached.hash === photoHash) return
+  caller.get(entity, jid, xml`<vCard xmlns='vcard-temp'/>`).then((value) => {
+    const photoEl = value.getChild('PHOTO')
+    if (!photoEl) return
+    const type = photoEl.getChildText('TYPE')
+    const binval = photoEl.getChildText('BINVAL')
+    if (type && binval) {
+      const buf = new Buffer(binval, 'base64')
+      fs.writeFile(path.join(__dirname, '../avatars/', hash), buf, (err) => {
+        if (err) return console.error(err)
+        else {
+          const avatar = {
+            type: type,
+            size: buf.length,
+            hash: photoHash
+          }
+          presences.set(hash, 'avatar', avatar)
+          cache.put(jid, {avatar})
+        }
+      })
+    }
+  })
+}
+
 entity.on('stanza', (stanza) => {
+  const {from, type} = stanza.attrs
+  if (!from) return
+  const jid = JID(from).bare().toString()
+  const hash = presences.hash(jid)
+
   if (stanza.is('presence')) {
-    const {from, type} = stanza.attrs
-    if (!from) return
-    const jid = JID(from).bare().toString()
-    const hash = presences.hash(jid)
+    const nick = stanza.getChildText('nick', 'http://jabber.org/protocol/nick')
+    if (nick) presences.set(hash, 'nick', nick)
+
     if (type === 'subscribe') {
       entity.send(xml`<presence to='${from}' type='subscribed'/>`)
       entity.send(xml`<presence to='${from}' type='subscribe'/>`)
+
     } else if (type === 'unsubscribed') {
       entity.send(xml`<presence to='${from}' type='unsubscribe'/>`)
       cache.del(from)
       presences.forget(hash)
+
     } else if (type === 'subscribed') {
       cache.put(from, {})
+
     } else if (type === 'unavailable') {
       presences.set(hash, 'show', 'unavailable')
+
     } else if (type === 'probe') {
       entity.send(xml`<presence to='${from}'/>`)
+
     } else if (type === undefined || type === 'available') {
-      const show = stanza.getChild('show')
-      if (show && show.text()) presences.set(hash, 'show', show.text())
-      else presences.set(hash, 'show', 'available')
-      const status = stanza.getChild('status')
-      if (status && status.getText()) presences.set(hash, 'status', status.text())
+      presences.set(hash, 'show', stanza.getChildText('show') || 'available')
+      presences.set(hash, 'status',  stanza.getChildText('status') || '')
       const vcardEl = stanza.getChild('x', 'vcard-temp:x:update')
-      if (vcardEl) {
-        const photo = vcardEl.getChild('photo')
-        if (photo && photo.text()) {
-          const cached = presences.get(hash, 'avatar') || {}
-          if (cached.hash === photo.text()) return
-          caller.get(entity, jid, xml`<vCard xmlns='vcard-temp'/>`).then((value) => {
-            const photoEl = value.getChild('PHOTO')
-            if (!photoEl) return
-            const typeEl = photoEl.getChild('TYPE')
-            const binvalEl = photoEl.getChild('BINVAL')
-            if (typeEl && typeEl.text() && binvalEl && binvalEl.text()) {
-              const buf = new Buffer(binvalEl.text(), 'base64')
-              fs.writeFile(path.join(__dirname, '../avatars/', hash), buf, (err) => {
-                if (err) return console.error(err)
-                else {
-                  const avatar = {
-                    type: typeEl.text(),
-                    size: buf.length,
-                    hash: photo.text()
-                  }
-                  presences.set(hash, 'avatar', avatar)
-                  cache.put(jid, {avatar})
-                }
-              })
-            }
-          })
-        }
+      if (vcardEl && vcardEl.getChildText('photo')) {
+        updateAvatar(hash, jid, vcardEl.getChildText('photo'))
       }
     }
-  }
-  // <presence type='subscribe' to='ubiquity.localhost' from='sonny@localhost' id='e659394d-2174-4482-b557-613759b21468'>
-  //   <nick xmlns='http://jabber.org/protocol/nick'>sonny</nick>
-  //   <x xmlns='vcard-temp:x:update'/>
-  //   <c ver='R9UmbqHoJP+gSo7KAFGnuVU21s0=' hash='sha-1' node='http://gajim.org' xmlns='http://jabber.org/protocol/caps'/>
-  //   <status>Hello, I am sonny. I would like to add you to my contact list.</status>
-  // </presence>
 
+  } else if (stanza.is('message') && type === 'headline') {
+    const eventEl = stanza.getChild('event', 'http://jabber.org/protocol/pubsub#event')
+    const itemsEl = eventEl.getChild('items')
+    const {node} = itemsEl.attrs
+    if (node === 'http://jabber.org/protocol/nick') {
+      const itemEl = itemsEl.getChild('item')
+      const nick = itemEl.getChildText('nick', 'http://jabber.org/protocol/nick')
+      if (typeof nick === 'string') presences.set(hash, 'nick', nick)
+    }
+  }
 })
 
 entity.once('error', (err) => {
