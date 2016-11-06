@@ -1,7 +1,7 @@
 'use strict'
 
 const xml = require('@xmpp/xml')
-const pkg = require('../package.json')
+const pkg = require('../../package.json')
 
 module.exports.match = function (iq) {
   return iq.getChild('query', 'http://jabber.org/protocol/disco#info')

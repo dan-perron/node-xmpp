@@ -2,7 +2,7 @@
 
 const express = require('express')
 const server = express()
-const presences = require('./presences')
+const presences = require('../presences')
 
 server.get('/:hash/status', (req, res, next) => {
   const status = presences.get(req.params.hash, 'status')

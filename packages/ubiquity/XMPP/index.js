@@ -4,10 +4,9 @@ const Component = require('@xmpp/component')
 const iqCallee = require('@xmpp/iq-callee')
 const xml = require('@xmpp/xml')
 const JID = require('@xmpp/jid')
-const pkg = require('./package.json')
 const iqHandlers = require('./iq-handlers')
 const entity = new Component()
-const presences = require('./presences')
+const presences = require('../presences')
 const subscriptions = require('./subscriptions')
 
 iqCallee.plugin(entity)
@@ -19,6 +18,7 @@ iqHandlers.forEach(({match, handle}) => {
 entity.on('stanza', (stanza) => {
   if (stanza.is('presence')) {
     const {from, type} = stanza.attrs
+    if (!from) return
     const jid = JID(from).bare().toString()
     const hash = presences.hash(jid)
     if (type === 'subscribe') {
@@ -38,6 +38,17 @@ entity.on('stanza', (stanza) => {
       // const show = stanza.getChild('show')
       // const status = stanza.getChild('status')
       presences.set(hash, 'status', 'available')
+      const vcardEl = stanza.getChild('x', 'vcard-temp:x:update')
+      if (vcardEl) {
+        const photo = vcardEl.getChild('photo')
+        if (photo && photo.text()) {
+          entity.send(xml`
+            <iq to='${jid}' type='get'>
+              <vCard xmlns='vcard-temp'/>
+            </iq>
+          `)
+        }
+      }
     }
   }
   // <presence type='subscribe' to='ubiquity.localhost' from='sonny@localhost' id='e659394d-2174-4482-b557-613759b21468'>
@@ -72,9 +83,17 @@ module.exports.start = function () {
   return entity.start('xmpp:ubiquity.localhost:5347')
     .then((jid) => {
       console.log('XMPP component', jid.toString(), 'online')
-
       subscriptions.createKeyStream().on('data', (key) => {
         entity.send(xml`<presence type='probe' to='${key}'/>`)
+        entity.send(xml`
+          <iq type='get'
+              to='${key}'
+              id='retrieve1'>
+            <pubsub xmlns='http://jabber.org/protocol/pubsub'>
+              <items node='urn:xmpp:avatar:data'/>
+            </pubsub>
+          </iq>
+        `)
       })
     })
 }
