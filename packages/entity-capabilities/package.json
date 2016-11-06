@@ -1,0 +1,18 @@
+{
+  "name": "@xmpp/entity-capabilities",
+  "description": "XMPP entity capabilities for JavaScript",
+  "repository": "github:node-xmpp/node-xmpp",
+  "homepage": "https://github.com/node-xmpp/node-xmpp/tree/master/packages/entity-capabilities",
+  "bugs": "http://github.com/node-xmpp/node-xmpp/issues",
+  "version": "0.0.0",
+  "license": "ISC",
+  "keywords": [
+    "XMPP",
+    "entity",
+    "capabilities",
+    "caps"
+  ],
+  "devDependencies": {
+    "@xmpp/xml": "^0.0.1"
+  }
+}

@@ -200,10 +200,10 @@ class Connection extends EventEmitter {
       element = element.root()
 
       const {name} = element
-      const NS = element.getNS()
-      if (NS !== this.NS && name === 'iq' || name === 'message' || name === 'presence') {
-        element.attrs.xmlns = this.NS
-      }
+      // const NS = element.getNS()
+      // if (NS !== this.NS && name === 'iq' || name === 'message' || name === 'presence') {
+      //   element.attrs.xmlns = this.NS
+      // }
 
       this.write(element).then(resolve, reject)
     })

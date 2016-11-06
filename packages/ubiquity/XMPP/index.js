@@ -11,6 +11,9 @@ const iqHandlers = require('./iq-handlers')
 const entity = new Component()
 const presences = require('../presences')
 const cache = require('../cache')
+const caps = require('@xmpp/entity-capabilities')
+const {disco} = require('./iq-handlers/discoinfo')
+const hash = caps.hash(disco)
 
 callee.plugin(entity)
 caller.plugin(entity)
@@ -108,6 +111,14 @@ module.exports.start = function () {
     .then((jid) => {
       console.log('XMPP component', jid.toString(), 'online')
       Object.values(presences.store).forEach(({jid}) => {
+        entity.send(xml`
+          <presence to='${jid}'>
+            <c xmlns='http://jabber.org/protocol/caps'
+              hash='sha-1'
+              node='ubiquity'
+              ver='${hash}'/>
+          </presence>
+        `)
         entity.send(xml`<presence type='probe' to='${jid}'/>`)
       })
     })

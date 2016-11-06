@@ -17,10 +17,7 @@ module.exports.start = function () {
       })
       presences.set(hash, 'jid', key)
     })
-    stream.on('end', () => {
-      console.log(presences.store)
-      resolve()
-    })
+    stream.on('end', resolve)
     stream.on('error', reject)
   })
 }
