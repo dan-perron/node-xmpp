@@ -1,5 +1,6 @@
 node_modules/
 coverage/
+packages/ubiquity/db
 
 !.editorconfig
 !.gitignore

@@ -3,12 +3,12 @@
 const Component = require('@xmpp/component')
 const iqCallee = require('@xmpp/iq-callee')
 const xml = require('@xmpp/xml')
+const JID = require('@xmpp/jid')
 const pkg = require('./package.json')
 const iqHandlers = require('./iq-handlers')
 const entity = new Component()
 const presences = require('./presences')
 const subscriptions = require('./subscriptions')
-const JID = require('@xmpp/jid')
 
 iqCallee.plugin(entity)
 
@@ -22,16 +22,10 @@ entity.on('stanza', (stanza) => {
     const jid = JID(from).bare().toString()
     const hash = presences.hash(jid)
     if (type === 'subscribe') {
-      entity.send(xml`
-        <presence to='${from}' type='subscribed'/>
-      `)
-      entity.send(xml`
-        <presence to='${from}' type='subscribe'/>
-      `)
+      entity.send(xml`<presence to='${from}' type='subscribed'/>`)
+      entity.send(xml`<presence to='${from}' type='subscribe'/>`)
     } else if (type === 'unsubscribed') {
-      entity.send(xml`
-        <presence to='${from}' type='unsubscribe'/>
-      `)
+      entity.send(xml`<presence to='${from}' type='unsubscribe'/>`)
       subscriptions.del(from)
       presences.forget(hash)
     } else if (type === 'subscribed') {
@@ -39,9 +33,7 @@ entity.on('stanza', (stanza) => {
     } else if (type === 'unavailable') {
       presences.set(hash, 'status', 'unavailable')
     } else if (type === 'probe') {
-      entity.send(xml`
-        <presence to='${from}'/>
-      `)
+      entity.send(xml`<presence to='${from}'/>`)
     } else if (type === undefined || type === 'available') {
       // const show = stanza.getChild('show')
       // const status = stanza.getChild('status')

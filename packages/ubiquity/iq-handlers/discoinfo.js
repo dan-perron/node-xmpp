@@ -1,3 +1,5 @@
+'use strict'
+
 const xml = require('@xmpp/xml')
 const pkg = require('../package.json')
 
